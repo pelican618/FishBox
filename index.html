@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>WebUSB WinUSB 设备调试工具</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f4f8;
+            margin: 0;
+            padding: 20px;
+            color: #1e2a3a;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.15);
+            overflow: hidden;
+            backdrop-filter: blur(0px);
+            transition: all 0.2s;
+        }
+
+        header {
+            background: linear-gradient(135deg, #0b2b3b 0%, #1a4a5f 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        header h1 {
+            margin: 0 0 0.3rem 0;
+            font-weight: 600;
+            font-size: 1.8rem;
+            letter-spacing: -0.3px;
+        }
+
+        header p {
+            margin: 0;
+            opacity: 0.85;
+            font-size: 0.9rem;
+        }
+
+        .warning-banner {
+            background: #fff3e0;
+            border-left: 6px solid #f39c12;
+            padding: 0.8rem 1.5rem;
+            font-size: 0.85rem;
+            color: #7d5d2c;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .warning-banner span:first-child {
+            font-weight: bold;
+            background: #f39c12;
+            color: #2c3e2f;
+            padding: 2px 10px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+        }
+
+        .content {
+            padding: 1.8rem 2rem 2rem 2rem;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-bottom: 28px;
+            background: #f8fafc;
+            padding: 1rem 1.2rem;
+            border-radius: 40px;
+            align-items: center;
+            border: 1px solid #e2edf2;
+        }
+
+        button {
+            background: #1f6e8c;
+            border: none;
+            color: white;
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button i {
+            font-style: normal;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        button:hover {
+            background: #0e4d64;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 12px -8px rgba(0,0,0,0.2);
+        }
+
+        button.danger {
+            background: #b91c1c;
+        }
+        button.danger:hover {
+            background: #991b1b;
+        }
+        button.secondary {
+            background: #4a627a;
+        }
+        button.secondary:hover {
+            background: #334c66;
+        }
+        button.success {
+            background: #2c7a4d;
+        }
+        button.success:hover {
+            background: #1e5a3a;
+        }
+
+        .status-card {
+            background: #eef2f5;
+            border-radius: 24px;
+            padding: 1.2rem 1.5rem;
+            margin-bottom: 28px;
+            border-left: 5px solid #2c8fbc;
+            font-family: monospace;
+            word-break: break-word;
+        }
+
+        .device-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+            gap: 12px;
+            margin-top: 12px;
+            font-family: 'SF Mono', 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+
+        .info-item {
+            background: white;
+            padding: 8px 14px;
+            border-radius: 20px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #1e5b74;
+        }
+
+        .panel-title {
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin: 1.2rem 0 0.8rem 0;
+            border-left: 5px solid #1f6e8c;
+            padding-left: 15px;
+            color: #0f3b4a;
+        }
+
+        .endpoint-grid {
+            background: #f9fbfd;
+            border-radius: 24px;
+            padding: 1rem;
+            border: 1px solid #dce9ef;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .endpoint-badge {
+            background: white;
+            border-radius: 40px;
+            padding: 6px 18px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border: 1px solid #cbdde6;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            transition: 0.1s;
+        }
+        .endpoint-badge.in {
+            border-left: 4px solid #2c7a4d;
+        }
+        .endpoint-badge.out {
+            border-left: 4px solid #b85c00;
+        }
+
+        .transfer-area {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 1.2rem;
+            margin-top: 20px;
+            border: 1px solid #e0edf3;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+        }
+
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+            margin-bottom: 16px;
+        }
+
+        .input-group {
+            flex: 1;
+            min-width: 160px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #5a7c8c;
+            margin-bottom: 4px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 20px;
+            border: 1px solid #cbdbe0;
+            background: #fff;
+            font-family: monospace;
+            font-size: 0.8rem;
+            transition: 0.2s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #1f6e8c;
+            box-shadow: 0 0 0 2px rgba(31,110,140,0.2);
+        }
+        textarea {
+            font-family: monospace;
+            resize: vertical;
+        }
+
+        .log-area {
+            background: #0f1722;
+            color: #cbd5e6;
+            border-radius: 20px;
+            padding: 1rem;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.75rem;
+            margin-top: 28px;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            border-bottom: 1px solid #1f2a3e;
+            padding: 6px 8px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log-entry.error {
+            color: #ffae9e;
+            background: #2e1a1f;
+        }
+        .log-entry.success {
+            color: #a3e4c2;
+        }
+        hr {
+            margin: 20px 0;
+            border: none;
+            border-top: 2px dotted #cbdde6;
+        }
+        footer {
+            text-align: center;
+            font-size: 0.7rem;
+            padding: 1rem;
+            color: #668099;
+            border-top: 1px solid #e2edf2;
+            background: #fafeff;
+        }
+        @media (max-width: 680px) {
+            .content { padding: 1rem; }
+            .toolbar { border-radius: 24px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>🔌 WebUSB · WinUSB 设备管理器</h1>
+        <p>直接通过浏览器访问 USB 设备 (需 WinUSB/LibUSB 驱动) | 支持控制传输 / 批量端点读写</p>
+    </header>
+    <div class="warning-banner">
+        <span>⚠️ 浏览器要求</span>
+        <span>需要 Chrome / Edge (Chromium内核) 且站点为 HTTPS (或 localhost)。首次连接需用户授权设备。</span>
+    </div>
+    <div class="content">
+        <div class="toolbar">
+            <button id="btnConnect">🖱️ 请求并连接设备</button>
+            <button id="btnGetExisting" class="secondary">📋 获取已授权设备</button>
+            <button id="btnDisconnect" class="danger">🔌 断开 & 释放接口</button>
+            <span style="flex:1; text-align:right; font-size:0.75rem;" id="statusText">⚫ 未连接</span>
+        </div>
+
+        <div class="status-card" id="deviceInfoPanel">
+            <strong>📟 当前设备信息</strong>
+            <div id="deviceDetail" class="device-info">
+                <div class="info-item"><span class="info-label">制造商:</span> <span id="manufacturer">—</span></div>
+                <div class="info-item"><span class="info-label">产品名:</span> <span id="productName">—</span></div>
+                <div class="info-item"><span class="info-label">序列号:</span> <span id="serialNumber">—</span></div>
+                <div class="info-item"><span class="info-label">VID:PID:</span> <span id="vidPid">—</span></div>
+                <div class="info-item"><span class="info-label">配置/接口:</span> <span id="configIf">—</span></div>
+            </div>
+        </div>
+
+        <div class="panel-title">⚡ 可用端点 (当前声明的接口)</div>
+        <div id="endpointsContainer" class="endpoint-grid">
+            <div style="color:#8aa0ae; padding:8px;">尚未连接设备或未claim接口</div>
+        </div>
+
+        <!-- 批量传输区域 -->
+        <div class="transfer-area">
+            <div style="font-weight:bold; margin-bottom:12px;">📤 批量 / 中断传输 (Bulk/Interrupt)</div>
+            <div class="flex-row">
+                <div class="input-group">
+                    <label>🔽 选择IN端点 (读取)</label>
+                    <select id="inEndpointSelect">
+                        <option value="">-- 无可用IN端点 --</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>📏 读取长度 (字节)</label>
+                    <input type="number" id="readLength" value="64" step="1" min="1" max="4096">
+                </div>
+                <div>
+                    <button id="btnReadData" class="success">📥 从IN端点读取数据</button>
+                </div>
+            </div>
+            <div class="flex-row">
+                <div class="input-group">
+                    <label>🔼 选择OUT端点 (发送)</label>
+                    <select id="outEndpointSelect">
+                        <option value="">-- 无可用OUT端点 --</option>
+                    </select>
+                </div>
+                <div class="input-group" style="flex:2;">
+                    <label>📝 发送数据 (十六进制, 空格分隔, 例如 "01 02 FF 00")</label>
+                    <input type="text" id="outHexData" placeholder="01 02 AB CD 10" value="00 01 02 03">
+                </div>
+                <div>
+                    <button id="btnWriteData" class="success">📤 发送至OUT端点</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 控制传输区域 -->
+        <div class="transfer-area">
+            <div style="font-weight:bold; margin-bottom:12px;">🎛️ 控制传输 (Control Transfer) - 厂商/标准请求</div>
+            <div class="flex-row">
+                <div class="input-group"><label>bmRequestType (HEX)</label><input type="text" id="ctrlReqType" value="0x40" placeholder="0x40"></div>
+                <div class="input-group"><label>bRequest (HEX)</label><input type="text" id="ctrlRequest" value="0x00" placeholder="0x00"></div>
+                <div class="input-group"><label>wValue (HEX)</label><input type="text" id="ctrlValue" value="0x0000" placeholder="0x0000"></div>
+                <div class="input-group"><label>wIndex (HEX)</label><input type="text" id="ctrlIndex" value="0x0000" placeholder="0x0000"></div>
+            </div>
+            <div class="flex-row">
+                <div class="input-group" style="flex:2;"><label>发送数据 (HEX, 仅Host->Device)</label><input type="text" id="ctrlDataOut" placeholder="例如 00 11 22"></div>
+                <div><button id="btnCtrlTransfer" class="secondary">🔄 执行控制传输</button></div>
+                <div><button id="btnCtrlRead" class="secondary">📖 控制读取 (IN)</button></div>
+            </div>
+            <div style="margin-top:8px;font-size:0.7rem;color:#4b6e7c;">💡 提示: 控制传输可发送标准/厂商请求; 若设备支持，可读取字符串描述符等。</div>
+        </div>
+
+        <div class="log-area" id="logPanel">
+            <div class="log-entry">✨ 就绪，点击上方按钮连接 WinUSB 兼容设备。</div>
+        </div>
+        <footer>🔬 基于 WebUSB API | 需设备支持 WinUSB 驱动且未被系统驱动独占。所有操作均需用户授权。</footer>
+    </div>
+</div>
+
+<script>
+    // ---------- 全局变量 ----------
+    let connectedDevice = null;       // USBDevice 对象
+    let claimedInterfaceNumber = null;   // 当前声明的接口号
+    let activeConfiguration = null;      // 当前激活的配置值
+    let availableInEndpoints = [];       // 存储 { endpointNumber, packetSize, type }
+    let availableOutEndpoints = [];
+
+    // DOM 元素
+    const logPanel = document.getElementById('logPanel');
+    const btnConnect = document.getElementById('btnConnect');
+    const btnGetExisting = document.getElementById('btnGetExisting');
+    const btnDisconnect = document.getElementById('btnDisconnect');
+    const btnReadData = document.getElementById('btnReadData');
+    const btnWriteData = document.getElementById('btnWriteData');
+    const btnCtrlTransfer = document.getElementById('btnCtrlTransfer');
+    const btnCtrlRead = document.getElementById('btnCtrlRead');
+    const inEndpointSelect = document.getElementById('inEndpointSelect');
+    const outEndpointSelect = document.getElementById('outEndpointSelect');
+    const readLengthInput = document.getElementById('readLength');
+    const outHexData = document.getElementById('outHexData');
+    const statusSpan = document.getElementById('statusText');
+
+    // 设备信息显示span
+    const manufacturerSpan = document.getElementById('manufacturer');
+    const productNameSpan = document.getElementById('productName');
+    const serialNumberSpan = document.getElementById('serialNumber');
+    const vidPidSpan = document.getElementById('vidPid');
+    const configIfSpan = document.getElementById('configIf');
+
+    // ---------- 辅助函数 ----------
+    function addLog(message, isError = false, isSuccess = false) {
+        const logDiv = document.createElement('div');
+        logDiv.className = 'log-entry';
+        if (isError) logDiv.classList.add('error');
+        if (isSuccess) logDiv.classList.add('success');
+        const timestamp = new Date().toLocaleTimeString();
+        logDiv.textContent = `[${timestamp}] ${message}`;
+        logPanel.appendChild(logDiv);
+        logDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        // 自动滚动到底部
+        logPanel.scrollTop = logPanel.scrollHeight;
+        if (isError) console.error(message);
+        else console.log(message);
+    }
+
+    function updateStatusUI(connected) {
+        if (connected && connectedDevice) {
+            statusSpan.innerHTML = '🟢 已连接设备 - ' + (connectedDevice.productName || 'USB设备');
+            btnDisconnect.disabled = false;
+        } else {
+            statusSpan.innerHTML = '⚫ 未连接';
+            btnDisconnect.disabled = true;
+        }
+    }
+
+    // 重置端点UI
+    function resetEndpointsUI() {
+        availableInEndpoints = [];
+        availableOutEndpoints = [];
+        inEndpointSelect.innerHTML = '<option value="">-- 无可用IN端点 --</option>';
+        outEndpointSelect.innerHTML = '<option value="">-- 无可用OUT端点 --</option>';
+        const endpointsDiv = document.getElementById('endpointsContainer');
+        endpointsDiv.innerHTML = '<div style="color:#8aa0ae; padding:8px;">没有活动接口或未Claim接口</div>';
+    }
+
+    // 刷新端点列表并填充下拉框
+    function refreshEndpointsList(interfaceObj) {
+        if (!interfaceObj || !interfaceObj.alternate) return;
+        const alternate = interfaceObj.alternate;
+        const endpoints = alternate.endpoints || [];
+        availableInEndpoints = [];
+        availableOutEndpoints = [];
+        for (const ep of endpoints) {
+            const epNum = ep.endpointNumber;
+            const dir = ep.direction; // "in" or "out"
+            const type = ep.type;     // "bulk", "interrupt", "control"
+            const packetSize = ep.packetSize;
+            if (dir === 'in') {
+                availableInEndpoints.push({ endpointNumber: epNum, packetSize, type });
+            } else if (dir === 'out') {
+                availableOutEndpoints.push({ endpointNumber: epNum, packetSize, type });
+            }
+        }
+
+        // 更新UI展示
+        const container = document.getElementById('endpointsContainer');
+        container.innerHTML = '';
+        if (availableInEndpoints.length === 0 && availableOutEndpoints.length === 0) {
+            container.innerHTML = '<div style="padding:8px;">⚠️ 当前接口没有批量/中断端点，仅支持控制传输。</div>';
+        } else {
+            availableInEndpoints.forEach(ep => {
+                const badge = document.createElement('div');
+                badge.className = 'endpoint-badge in';
+                badge.innerHTML = `📥 IN EP: 0x${ep.endpointNumber.toString(16)} (${ep.type}) 最大包:${ep.packetSize}`;
+                container.appendChild(badge);
+            });
+            availableOutEndpoints.forEach(ep => {
+                const badge = document.createElement('div');
+                badge.className = 'endpoint-badge out';
+                badge.innerHTML = `📤 OUT EP: 0x${ep.endpointNumber.toString(16)} (${ep.type}) 最大包:${ep.packetSize}`;
+                container.appendChild(badge);
+            });
+        }
+
+        // 填充下拉菜单
+        inEndpointSelect.innerHTML = '<option value="">-- 选择IN端点 --</option>';
+        availableInEndpoints.forEach(ep => {
+            const option = document.createElement('option');
+            option.value = ep.endpointNumber;
+            option.textContent = `IN 0x${ep.endpointNumber.toString(16)} (${ep.type}, 包大小:${ep.packetSize})`;
+            inEndpointSelect.appendChild(option);
+        });
+        outEndpointSelect.innerHTML = '<option value="">-- 选择OUT端点 --</option>';
+        availableOutEndpoints.forEach(ep => {
+            const option = document.createElement('option');
+            option.value = ep.endpointNumber;
+            option.textContent = `OUT 0x${ep.endpointNumber.toString(16)} (${ep.type}, 包大小:${ep.packetSize})`;
+            outEndpointSelect.appendChild(option);
+        });
+    }
+
+    // 显示设备基础信息
+    function displayDeviceInfo(device) {
+        if (!device) return;
+        manufacturerSpan.textContent = device.manufacturerName || '未知';
+        productNameSpan.textContent = device.productName || '未知';
+        serialNumberSpan.textContent = device.serialNumber || '无';
+        vidPidSpan.textContent = `0x${device.vendorId.toString(16)}:0x${device.productId.toString(16)}`;
+        if (activeConfiguration !== null) configIfSpan.textContent = `配置${activeConfiguration}, 接口${claimedInterfaceNumber ?? '未声明'}`;
+        else configIfSpan.textContent = '未配置';
+    }
+
+    // 断开并清理设备
+    async function disconnectDevice() {
+        if (!connectedDevice) {
+            addLog("没有已连接的设备", false);
+            return;
+        }
+        try {
+            if (claimedInterfaceNumber !== null) {
+                await connectedDevice.releaseInterface(claimedInterfaceNumber);
+                addLog(`✅ 已释放接口 #${claimedInterfaceNumber}`, false, true);
+                claimedInterfaceNumber = null;
+            }
+            if (connectedDevice.opened) {
+                await connectedDevice.close();
+                addLog("🔌 设备连接已关闭", false, true);
+            }
+        } catch (err) {
+            addLog(`释放资源出错: ${err.message}`, true);
+        } finally {
+            connectedDevice = null;
+            activeConfiguration = null;
+            claimedInterfaceNumber = null;
+            resetEndpointsUI();
+            manufacturerSpan.textContent = '—';
+            productNameSpan.textContent = '—';
+            serialNumberSpan.textContent = '—';
+            vidPidSpan.textContent = '—';
+            configIfSpan.textContent = '—';
+            updateStatusUI(false);
+            addLog("设备已断开", false);
+        }
+    }
+
+    // 核心: 连接设备 (传入device对象)
+    async function connectToDevice(device) {
+        if (connectedDevice && connectedDevice === device && device.opened) {
+            addLog("设备已经打开, 无需重复连接", false);
+            return true;
+        }
+        // 先断开已有
+        if (connectedDevice && connectedDevice.opened) {
+            await disconnectDevice();
+        }
+        try {
+            addLog(`正在打开设备: ${device.productName || 'USB设备'} ...`);
+            await device.open();
+            // 选择第一个配置
+            if (device.configuration === null) {
+                const configValue = device.configurations[0]?.configurationValue;
+                if (configValue === undefined) throw new Error("设备没有可用配置");
+                await device.selectConfiguration(configValue);
+                activeConfiguration = configValue;
+                addLog(`选择配置 #${activeConfiguration}`, false, true);
+            } else {
+                activeConfiguration = device.configuration.configurationValue;
+                addLog(`使用当前配置 #${activeConfiguration}`, false);
+            }
+            // 声明接口: 一般取第一个接口 (interface 0)
+            const firstInterface = device.configuration.interfaces[0];
+            if (!firstInterface) throw new Error("没有找到接口");
+            const interfaceNumber = firstInterface.interfaceNumber;
+            await device.claimInterface(interfaceNumber);
+            claimedInterfaceNumber = interfaceNumber;
+            addLog(`成功声明接口 #${claimedInterfaceNumber} (alternate: ${firstInterface.alternate.alternateSetting})`, false, true);
+            // 保存设备引用
+            connectedDevice = device;
+            // 刷新端点信息
+            refreshEndpointsList(firstInterface);
+            displayDeviceInfo(device);
+            updateStatusUI(true);
+            addLog(`🎉 设备已就绪，可进行通信`, false, true);
+            return true;
+        } catch (err) {
+            addLog(`连接设备失败: ${err.message}`, true);
+            if (device.opened) await device.close().catch(e=>{});
+            connectedDevice = null;
+            claimedInterfaceNumber = null;
+            updateStatusUI(false);
+            return false;
+        }
+    }
+
+    // 请求设备 (用户选择)
+    async function requestAndConnect() {
+        try {
+            const filters = []; // 空过滤器展示所有支持的设备
+            const device = await navigator.usb.requestDevice({ filters });
+            if (!device) {
+                addLog("未选择设备", false);
+                return;
+            }
+            addLog(`用户选择了设备: ${device.productName || '无名称'} (VID:PID=${device.vendorId}:${device.productId})`);
+            await connectToDevice(device);
+        } catch (err) {
+            addLog(`请求设备失败: ${err.message}`, true);
+        }
+    }
+
+    // 获取已经授权的设备并尝试连接
+    async function getExistingAndConnect() {
+        try {
+            const devices = await navigator.usb.getDevices();
+            if (devices.length === 0) {
+                addLog("没有已授权的设备，请先点击「请求并连接设备」授权一次。", false);
+                return;
+            }
+            addLog(`发现 ${devices.length} 个已授权设备`);
+            // 简单选择第一个
+            const device = devices[0];
+            addLog(`尝试连接已授权设备: ${device.productName || '未知'} (${device.vendorId}:${device.productId})`);
+            await connectToDevice(device);
+        } catch (err) {
+            addLog(`获取已授权设备出错: ${err.message}`, true);
+        }
+    }
+
+    // ---------- 批量读取 ----------
+    async function readFromEndpoint() {
+        if (!connectedDevice || !connectedDevice.opened) { addLog("设备未连接", true); return; }
+        const epNumber = parseInt(inEndpointSelect.value);
+        if (isNaN(epNumber)) { addLog("请选择一个有效的IN端点", true); return; }
+        const length = parseInt(readLengthInput.value);
+        if (isNaN(length) || length <= 0) { addLog("读取长度必须大于0", true); return; }
+        try {
+            addLog(`🔽 从端点 0x${epNumber.toString(16)} 读取 ${length} 字节...`);
+            const result = await connectedDevice.transferIn(epNumber, length);
+            if (result.data && result.data.byteLength > 0) {
+                const dataView = new Uint8Array(result.data.buffer);
+                const hexStr = Array.from(dataView).map(b => b.toString(16).padStart(2,'0')).join(' ').toUpperCase();
+                let ascii = Array.from(dataView).map(b => (b >= 32 && b <= 126) ? String.fromCharCode(b) : '.').join('');
+                addLog(`✅ 读取成功 (实际 ${result.data.byteLength} 字节): HEX: ${hexStr}`, false, true);
+                addLog(`📄 ASCII: ${ascii.substring(0, 200)}`, false);
+            } else {
+                addLog(`读取成功但数据长度为0`, false);
+            }
+        } catch (err) {
+            addLog(`读取端点失败: ${err.message}`, true);
+        }
+    }
+
+    // 批量写入
+    async function writeToEndpoint() {
+        if (!connectedDevice || !connectedDevice.opened) { addLog("设备未连接", true); return; }
+        const epNumber = parseInt(outEndpointSelect.value);
+        if (isNaN(epNumber)) { addLog("请选择一个有效的OUT端点", true); return; }
+        const hexStr = outHexData.value.trim();
+        if (!hexStr) { addLog("请输入要发送的十六进制数据", true); return; }
+        // 解析hex
+        const bytes = [];
+        const parts = hexStr.split(/\s+/);
+        for (let part of parts) {
+            if (part === "") continue;
+            const byte = parseInt(part, 16);
+            if (isNaN(byte) || byte < 0 || byte > 255) {
+                addLog(`无效的十六进制字节: ${part}`, true);
+                return;
+            }
+            bytes.push(byte);
+        }
+        if (bytes.length === 0) { addLog("没有有效数据", true); return; }
+        const dataBuffer = new Uint8Array(bytes);
+        try {
+            addLog(`📤 向端点 0x${epNumber.toString(16)} 发送 ${dataBuffer.length} 字节: ${hexStr}`);
+            const result = await connectedDevice.transferOut(epNumber, dataBuffer);
+            if (result.status === 'ok') {
+                addLog(`✅ 发送成功，已传输 ${result.bytesWritten} 字节`, false, true);
+            } else {
+                addLog(`⚠️ 发送状态: ${result.status}`, false);
+            }
+        } catch (err) {
+            addLog(`写入失败: ${err.message}`, true);
+        }
+    }
+
+    // 控制传输 (通用)
+    async function controlTransfer(isRead = false) {
+        if (!connectedDevice || !connectedDevice.opened) { addLog("设备未连接", true); return; }
+        try {
+            let bmRequestType = parseInt(document.getElementById('ctrlReqType').value, 16);
+            let bRequest = parseInt(document.getElementById('ctrlRequest').value, 16);
+            let wValue = parseInt(document.getElementById('ctrlValue').value, 16);
+            let wIndex = parseInt(document.getElementById('ctrlIndex').value, 16);
+            if (isNaN(bmRequestType) || isNaN(bRequest) || isNaN(wValue) || isNaN(wIndex)) {
+                addLog("控制传输参数必须是有效的十六进制数字", true); return;
+            }
+            if (isRead) {
+                // 读取方向 (Device to Host)
+                const length = 256;
+                addLog(`🔎 控制读取: bmReq=0x${bmRequestType.toString(16)} bReq=0x${bRequest.toString(16)} wVal=0x${wValue.toString(16)} wIdx=0x${wIndex.toString(16)} 长度=${length}`);
+                const result = await connectedDevice.controlTransferIn({
+                    requestType: (bmRequestType & 0x80) ? 'vendor' : 'standard',
+                    recipient: (bmRequestType & 0x0F),
+                    request: bRequest,
+                    value: wValue,
+                    index: wIndex
+                }, length);
+                const data = new Uint8Array(result.data.buffer);
+                const hex = Array.from(data).map(b => b.toString(16).padStart(2,'0')).join(' ').toUpperCase();
+                addLog(`✅ 控制读取成功 (${result.data.byteLength}字节): ${hex}`, false, true);
+            } else {
+                // 写出数据 (Host to Device)
+                let outHex = document.getElementById('ctrlDataOut').value.trim();
+                let outBytes = [];
+                if (outHex) {
+                    const parts = outHex.split(/\s+/);
+                    for (let p of parts) {
+                        if (p === "") continue;
+                        let byte = parseInt(p,16);
+                        if (isNaN(byte) || byte<0 || byte>255) throw new Error(`无效hex: ${p}`);
+                        outBytes.push(byte);
+                    }
+                }
+                const dataToSend = new Uint8Array(outBytes);
+                addLog(`✍️ 控制写入: bmReq=0x${bmRequestType.toString(16)} bReq=0x${bRequest.toString(16)} wVal=0x${wValue.toString(16)} wIdx=0x${wIndex.toString(16)} 数据=${outHex||'空'}`);
+                const result = await connectedDevice.controlTransferOut({
+                    requestType: (bmRequestType & 0x80) ? 'vendor' : 'standard',
+                    recipient: (bmRequestType & 0x0F),
+                    request: bRequest,
+                    value: wValue,
+                    index: wIndex
+                }, dataToSend);
+                addLog(`✅ 控制写入完成, status: ${result.status}`, false, true);
+            }
+        } catch (err) {
+            addLog(`控制传输异常: ${err.message}`, true);
+        }
+    }
+
+    // ---------- 事件绑定 ----------
+    btnConnect.addEventListener('click', requestAndConnect);
+    btnGetExisting.addEventListener('click', getExistingAndConnect);
+    btnDisconnect.addEventListener('click', disconnectDevice);
+    btnReadData.addEventListener('click', readFromEndpoint);
+    btnWriteData.addEventListener('click', writeToEndpoint);
+    btnCtrlTransfer.addEventListener('click', () => controlTransfer(false));
+    btnCtrlRead.addEventListener('click', () => controlTransfer(true));
+
+    // 页面关闭前尝试释放接口 (可选)
+    window.addEventListener('beforeunload', async () => {
+        if (connectedDevice && claimedInterfaceNumber !== null) {
+            try { await connectedDevice.releaseInterface(claimedInterfaceNumber); } catch(e) {}
+            if (connectedDevice.opened) await connectedDevice.close().catch(e=>{});
+        }
+    });
+
+    // 检查WebUSB可用性
+    if (!navigator.usb) {
+        addLog("❌ 当前浏览器不支持 WebUSB API。请使用 Chrome / Edge 等基于Chromium的浏览器，并确保 HTTPS 环境。", true);
+        btnConnect.disabled = true;
+        btnGetExisting.disabled = true;
+    } else {
+        addLog("✅ WebUSB API 可用，点击上方按钮连接WinUSB设备。", false, true);
+    }
+</script>
+</body>
+</html>
